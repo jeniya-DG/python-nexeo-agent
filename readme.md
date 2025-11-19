@@ -2,6 +2,10 @@
 
 Voice ordering system integrating Deepgram's Voice Agent API, Qu API, and semantic menu search.
 
+> **Note:**
+> - This repository is deployed as `dg-compat-lab/` locally and on EC2. You may need to adjust paths in commands accordingly.
+> - Rust backend code is based on [deepgram/nexeo-sts](https://github.com/deepgram/nexeo-sts)
+
 ---
 
 ## Architecture Diagram
