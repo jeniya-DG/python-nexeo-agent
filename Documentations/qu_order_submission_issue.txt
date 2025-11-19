@@ -1,0 +1,380 @@
+================================================================================
+    Qu API Order Submission - Payment Implementation Issue
+================================================================================
+
+Date: November 18, 2025
+Status: INCOMPLETE - Order creation and item addition work, but payment fails
+
+
+================================================================================
+CURRENT STATUS
+================================================================================
+
+Order submission to Qu API works through these steps:
+1. CREATE ORDER - WORKING
+2. ADD ITEMS (bulk) - WORKING
+3. ADD PAYMENT - FAILING (this is where it breaks)
+4. CLOSE ORDER - NOT REACHED (requires successful payment first)
+
+The system can successfully create orders and add items to Qu, but cannot
+complete the payment step, which means orders cannot be closed/submitted to
+the kitchen.
+
+
+================================================================================
+CURRENT FAILURE POINT: PAYMENT
+================================================================================
+
+The order submission fails at the payment step with this error:
+
+Error Message:
+  "The specified Payment Method is not allowed."
+
+HTTP Response:
+  400 Bad Request
+  {
+    "succeed": false,
+    "errors": [{
+      "code": 2036,
+      "key": "InvalidPaymentMethod",
+      "message": "The specified Payment Method is not allowed."
+    }]
+  }
+
+What We Tried:
+- paymentTypeId: 1 (Cash) - REJECTED
+- paymentMethod: dynamically fetched from order - REJECTED
+- Various payment amounts and configurations - ALL REJECTED
+
+Root Cause:
+  Payment methods are location/order-type specific. The payment configuration
+  for Location ID 4776 may require specific setup or credentials that we don't
+  have access to.
+
+
+================================================================================
+ENDPOINTS WE HAVE TRIED (In Order)
+================================================================================
+
+1. GET JWT TOKEN
+   Endpoint: POST /api/v4/authentication/oauth2/access-token
+   Method: POST with multipart form data
+   Body: {
+     grant_type: "client_credentials",
+     client_id: "deepgramjitb405",
+     client_secret: "[REDACTED]",
+     scope: "menu:* order:*"
+   }
+   Status: WORKING - Successfully generates JWT token
+   Response: {access_token, token_type, expires_in}
+
+2. GET MENU SNAPSHOT
+   Endpoint: GET /api/v4/sales/menus
+   Method: GET with Bearer token
+   Headers: {
+     Authorization: "Bearer {jwt}",
+     Company-Id: "405",
+     Location-Id: "4776",
+     X-Integration: "682c4b47f7e426d4b8208962"
+   }
+   Status: WORKING - Returns current menu with menuSnapshotId
+   Response: {value: {snapshotId, categories}}
+
+3. CREATE ORDER
+   Endpoint: POST /api/v4/sales/orders
+   Method: POST with JSON body
+   Headers: Same as above
+   Body: {
+     menuSnapshotId: "690142b50a47ca19cd06b82c",
+     orderChannelId: 1,
+     orderTypeId: 3
+   }
+   Status: WORKING - Successfully creates order
+   Response: {
+     value: {
+       order: {
+         id: "some-uuid",
+         status: "Open"
+       }
+     }
+   }
+
+4. ADD ITEMS (BULK)
+   Endpoint: POST /api/v4/sales/orders/{orderId}/bulk-items
+   Method: POST with JSON array
+   Headers: Same as above
+   Body: [
+     {
+       itemPathKey: "47587-56634-105606",
+       quantity: 1
+     }
+   ]
+   Status: WORKING - Items are added to order
+   Response: {
+     value: {
+       items: [{id, itemPathKey, quantity, price}],
+       totals: {subtotal, tax, total},
+       itemErrors: []
+     }
+   }
+   Note: If mandatory modifiers are missing, itemErrors will be populated
+         and totals may be null
+
+5. ADD MODIFIER TO ITEM
+   Endpoint: POST /api/v4/sales/orders/{orderId}/items/{itemId}/modifiers
+   Method: POST with JSON body
+   Headers: Same as above
+   Body: {
+     itemPathKey: "47587-56634-105606-49678-47753-49562-48222"
+   }
+   Status: WORKING - Modifiers are added
+   Response: {
+     value: {
+       modifier: {
+         id: "modifier-uuid",
+         itemPathKey: "...",
+         price: 0.00
+       }
+     }
+   }
+
+6. GET AVAILABLE PAYMENT METHODS
+   Endpoint: GET /api/v4/sales/orders/{orderId}/payment-methods
+   Method: GET
+   Headers: Same as above
+   Status: WORKING - Returns available payment methods
+   Response: {
+     value: [
+       {
+         paymentMethod: 1,
+         name: "Credit Card"
+       },
+       {
+         paymentMethod: 3,
+         name: "Cash"
+       }
+     ]
+   }
+
+7. ADD PAYMENT (FAILING HERE)
+   Endpoint: POST /api/v4/sales/orders/{orderId}/payments
+   Method: POST with JSON body
+   Headers: Same as above
+   Body: {
+     paymentMethod: 1,
+     amount: 8.19
+   }
+   Status: FAILING - Returns 400 Invalid Payment Method
+   Response: {
+     "succeed": false,
+     "errors": [{
+       "code": 2036,
+       "key": "InvalidPaymentMethod",
+       "message": "The specified Payment Method is not allowed."
+     }]
+   }
+
+8. CLOSE ORDER (NOT REACHED)
+   Endpoint: POST /api/v4/sales/orders/{orderId}/close-requests
+   Method: POST with JSON body
+   Headers: Same as above
+   Body: {
+     orderId: "{orderId}"
+   }
+   Status: NOT ATTEMPTED - Cannot reach this step without successful payment
+   Expected: Would close/submit order to kitchen
+
+
+================================================================================
+ADDITIONAL ENDPOINTS WE TRIED
+================================================================================
+
+GET Location Details:
+  Endpoint: GET /api/v4/locations/{locationId}
+  Purpose: To get orderChannelId and orderTypeId
+  Status: WORKING - Successfully returns location configuration
+
+GET Payment Types:
+  Endpoint: GET /api/v4/payments/types
+  Purpose: To get available payment type IDs
+  Status: WORKING - Returns list of payment types, but they don't work
+
+
+================================================================================
+WHY PAYMENT IS FAILING
+================================================================================
+
+Possible Reasons:
+
+1. MISSING PAYMENT CREDENTIALS
+   - Credit card payments may require merchant account setup
+   - Cash payments may require POS terminal configuration
+   - Payment methods may need to be enabled per location
+
+2. ORDER STATE ISSUE
+   - Order may need to be in specific state before accepting payment
+   - Totals must be calculated and non-zero
+   - All mandatory modifiers must be added
+
+3. API SCOPE LIMITATIONS
+   - Current API key has scopes: "menu:* order:*"
+   - Payment operations may require additional scope: "payment:*"
+   - Scope needs to be granted by Qu administrator
+
+4. LOCATION CONFIGURATION
+   - Location 4776 may not be configured for API payments
+   - Payment gateway may not be set up for this location
+   - Location may require in-person POS payment only
+
+
+================================================================================
+CURRENT WORKAROUND IN CODE
+================================================================================
+
+File: jitb_functions.py
+Function: submit_order_to_qu()
+
+Current implementation (simplified):
+1. Get JWT token - SUCCESS
+2. Get fresh menuSnapshotId - SUCCESS
+3. Create order with menuSnapshotId - SUCCESS
+4. Add items using bulk-items endpoint - SUCCESS
+5. Add modifiers for combo items - SUCCESS
+6. Get order details to verify totals - SUCCESS
+7. Get available payment methods - SUCCESS
+8. Attempt to add payment - FAILS HERE
+9. SKIPPED: Close order (cannot proceed without payment)
+
+Result: Orders are created in Qu with items, but remain "Open" status
+        and never get submitted to the kitchen.
+
+Orders are also saved locally to: ~/dg-compat-lab/orders/order_{timestamp}.json
+
+
+================================================================================
+TESTING COMMANDS
+================================================================================
+
+Test complete workflow manually:
+
+1. Get JWT token:
+curl -X POST https://gateway-api.qubeyond.com/api/v4/authentication/oauth2/access-token \
+  -F 'grant_type=client_credentials' \
+  -F 'client_id=deepgramjitb405' \
+  -F 'client_secret=6Nffn0*5QshgFVT]5>6Y' \
+  -F 'scope=menu:* order:*'
+
+2. Create order:
+curl -X POST https://gateway-api.qubeyond.com/api/v4/sales/orders \
+  -H "Authorization: Bearer {jwt}" \
+  -H "Company-Id: 405" \
+  -H "Location-Id: 4776" \
+  -H "X-Integration: 682c4b47f7e426d4b8208962" \
+  -H "Content-Type: application/json" \
+  -d '{"menuSnapshotId":"690142b50a47ca19cd06b82c","orderChannelId":1,"orderTypeId":3}'
+
+3. Add items:
+curl -X POST https://gateway-api.qubeyond.com/api/v4/sales/orders/{orderId}/bulk-items \
+  -H "Authorization: Bearer {jwt}" \
+  -H "Company-Id: 405" \
+  -H "Location-Id: 4776" \
+  -H "X-Integration: 682c4b47f7e426d4b8208962" \
+  -H "Content-Type: application/json" \
+  -d '[{"itemPathKey":"47587-56634-105606","quantity":1}]'
+
+4. Get payment methods:
+curl -X GET https://gateway-api.qubeyond.com/api/v4/sales/orders/{orderId}/payment-methods \
+  -H "Authorization: Bearer {jwt}" \
+  -H "Company-Id: 405" \
+  -H "Location-Id: 4776" \
+  -H "X-Integration: 682c4b47f7e426d4b8208962"
+
+5. Add payment (THIS FAILS):
+curl -X POST https://gateway-api.qubeyond.com/api/v4/sales/orders/{orderId}/payments \
+  -H "Authorization: Bearer {jwt}" \
+  -H "Company-Id: 405" \
+  -H "Location-Id: 4776" \
+  -H "X-Integration: 682c4b47f7e426d4b8208962" \
+  -H "Content-Type: application/json" \
+  -d '{"paymentMethod":1,"amount":8.19}'
+
+
+================================================================================
+WHAT WE NEED TO FIX THIS
+================================================================================
+
+To complete the Qu order submission, we need ONE of the following:
+
+Option 1: PAYMENT API ACCESS
+  - Request "payment:*" scope to be added to API key
+  - Get payment gateway credentials from Qu
+  - Configure payment methods for Location 4776
+
+Option 2: DUMMY PAYMENT FOR DEMO
+  - Qu provides a test/demo payment method ID
+  - This would allow orders to close without real payment processing
+  - Suitable for demo/testing purposes only
+
+Option 3: ALTERNATIVE PAYMENT FLOW
+  - Submit orders without payment (if Qu allows)
+  - Mark orders as "pay at counter" or similar
+  - Let POS handle payment separately
+
+Option 4: QU SUPPORT ASSISTANCE
+  - Contact Qu API support with our API key and location
+  - Ask them to verify payment configuration
+  - Request working example for location 4776
+
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+SHORT TERM (For Demo):
+  - Keep current local order logging
+  - Show order confirmation to user
+  - Manually enter orders into Qu POS if needed
+
+LONG TERM (For Production):
+  - Work with Qu support to enable payment API access
+  - Test payment flow in Qu sandbox environment first
+  - Implement proper error handling and retry logic
+  - Add monitoring for failed order submissions
+
+
+================================================================================
+CODE LOCATIONS
+================================================================================
+
+Order submission function:
+  File: jitb_functions.py
+  Function: submit_order_to_qu()
+  Lines: ~850-950
+
+Qu API helper functions:
+  File: jitb_functions.py
+  Functions:
+    - get_qu_jwt_token()
+    - create_qu_order()
+    - add_items_to_qu_order()
+    - add_payment_to_qu_order()
+    - close_qu_order()
+
+
+================================================================================
+CONTACT INFORMATION
+================================================================================
+
+Qu API Documentation: support.qubeyond.com/docs/api
+Qu API Base URL: https://gateway-api.qubeyond.com/api/v4
+API Client ID: deepgramjitb405
+Company ID: 405
+Location ID: 4776
+Integration ID: 682c4b47f7e426d4b8208962
+Current API Scopes: menu:* order:*
+Needed Scope: payment:* (probably)
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================

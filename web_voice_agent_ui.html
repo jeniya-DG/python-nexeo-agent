@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jack in the Box Voice Agent</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/svg+xml" href="/jack-in-the-box-1-icon.svg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: fit-content;
+        }
+        
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            width: fit-content;
+            flex: 1;
+            align-items: stretch;
+            max-height: 85vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            flex: 1;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+        
+        /* Order Display - Middle Column */
+        .order-display {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            padding: 30px;
+            width: 400px;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .order-display h2 {
+            color: #d32f2f;
+            margin: 0 0 20px 0;
+            font-size: 1.8em;
+            text-align: center;
+            border-bottom: 3px solid #d32f2f;
+            padding-bottom: 15px;
+            flex-shrink: 0;
+        }
+        
+        #orderItems {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            min-height: 300px;
+        }
+        
+        .order-item {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-left: 4px solid #d32f2f;
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .order-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .order-item-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .order-item-price {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #2e7d32;
+        }
+        
+        .order-item-modifiers {
+            margin-top: 8px;
+            padding-left: 12px;
+            border-left: 2px solid #ccc;
+        }
+        
+        .order-modifier {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .order-modifier-name {
+            flex: 1;
+        }
+        
+        .order-modifier-price {
+            color: #2e7d32;
+            font-weight: 500;
+        }
+        
+        .order-empty {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            padding: 60px 20px;
+        }
+        
+        .order-total {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: auto;
+            border-top: 3px solid #d32f2f;
+            flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .order-total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+            color: #666;
+        }
+        
+        .order-total-final {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #d32f2f;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 2px solid #ccc;
+        }
+        
+        .menu-board {
+            background: #1a1a1a;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            padding: 30px;
+            width: 500px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .menu-board h2 {
+            color: #ffd700;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 2em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 3px solid #ffd700;
+            padding-bottom: 15px;
+            flex-shrink: 0;
+        }
+        
+        .menu-metadata {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: auto;
+            font-size: 0.85em;
+            color: #aaa;
+            flex-shrink: 0;
+        }
+        
+        .menu-metadata-item {
+            margin: 4px 0;
+        }
+        
+        .menu-metadata-label {
+            color: #ffd700;
+            font-weight: 600;
+        }
+        
+        .menu-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            justify-content: center;
+            border-bottom: 2px solid #333;
+            flex-shrink: 0;
+        }
+        
+        .menu-tab {
+            background: #2a2a2a;
+            color: #aaa;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            text-transform: capitalize;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .menu-tab:hover {
+            background: #333;
+            color: #fff;
+        }
+        
+        .menu-tab.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        #menuBoardContent {
+            overflow-y: auto;
+            flex: 1;
+            margin-bottom: 15px;
+        }
+        
+        .menu-category {
+            margin-bottom: 30px;
+        }
+        
+        .menu-category h3 {
+            color: #ff6b6b;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-left: 4px solid #ff6b6b;
+            padding-left: 10px;
+        }
+        
+        .menu-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 8px 0;
+            border-bottom: 1px dotted #444;
+        }
+        
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+        
+        .menu-item-name {
+            flex: 1;
+            color: #fff;
+            font-size: 0.95em;
+            text-align: left;
+            padding-right: 20px;
+        }
+        
+        .menu-item-price {
+            color: #4CAF50;
+            font-weight: 700;
+            font-size: 1.1em;
+            margin-left: 15px;
+            white-space: nowrap;
+        }
+        
+        #menuBoardContent::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #menuBoardContent::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        
+        #menuBoardContent::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+        
+        #menuBoardContent::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+        
+        .loading-menu {
+            text-align: center;
+            color: #999;
+            padding: 40px 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .status.disconnected {
+            background: #fee;
+            color: #c00;
+        }
+        
+        .status.connecting {
+            background: #fef3cd;
+            color: #856404;
+        }
+        
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.speaking {
+            background: #cce5ff;
+            color: #004085;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        #connectBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        #disconnectBtn {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .conversation {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            min-height: 200px;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            line-height: 1.5;
+        }
+        
+        .message.user {
+            background: #e3f2fd;
+            color: #0d47a1;
+            margin-left: 40px;
+        }
+        
+        .message.agent {
+            background: #f3e5f5;
+            color: #4a148c;
+            margin-right: 40px;
+        }
+        
+        .message.system {
+            background: #fff3cd;
+            color: #856404;
+            font-size: 0.9em;
+            text-align: center;
+        }
+        
+        .message-label {
+            font-weight: 700;
+            margin-bottom: 5px;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .audio-visualizer {
+            height: 60px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            padding: 10px;
+        }
+        
+        .info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: auto;
+            flex-shrink: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .info h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .info ul {
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+        }
+        
+        .info li {
+            margin-bottom: 8px;
+            color: #666;
+        }
+        
+        .audio-bar {
+            width: 4px;
+            background: #667eea;
+            border-radius: 2px;
+            transition: height 0.1s ease;
+        }
+        
+        .info {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 100%;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .info.collapsed {
+            padding: 12px 20px;
+            cursor: pointer;
+        }
+        
+        .info.collapsed:hover {
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 6px 25px rgba(0,0,0,0.15);
+        }
+        
+        .info h3 {
+            color: #667eea;
+            margin: 0;
+            font-size: 0.95em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .info.collapsed h3 {
+            margin-bottom: 0;
+        }
+        
+        .info h3::before {
+            content: "ℹ️";
+            font-size: 1.2em;
+        }
+        
+        .info h3::after {
+            content: "▼";
+            margin-left: auto;
+            font-size: 0.7em;
+            transition: transform 0.3s ease;
+        }
+        
+        .info.collapsed h3::after {
+            transform: rotate(-90deg);
+        }
+        
+        .info ul {
+            margin: 15px 0 0 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+            counter-reset: step-counter;
+            max-height: 500px;
+            overflow: hidden;
+            opacity: 1;
+            transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+        }
+        
+        .info.collapsed ul {
+            max-height: 0;
+            opacity: 0;
+            margin: 0;
+        }
+        
+        .info li {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 10px 15px 10px 40px;
+            border-radius: 8px;
+            color: #555;
+            font-size: 0.85em;
+            border-left: 3px solid #667eea;
+            position: relative;
+            counter-increment: step-counter;
+            text-align: left;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .info li:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+        
+        .info li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75em;
+            line-height: 1;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .settings {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .settings label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        
+        .settings input[type="checkbox"] {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+    <div class="main-layout">
+        <div class="container">
+            <h1>Jack in the Box Voice Agent</h1>
+            <p class="subtitle">Talk to our AI assistant to place your order</p>
+        
+        <div id="status" class="status disconnected">
+            Disconnected
+        </div>
+        
+        <div class="controls">
+            <button id="connectBtn" onclick="connect()">Start Conversation</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>End Conversation</button>
+        </div>
+        
+        <div class="settings">
+            <label>
+                <input type="checkbox" id="showFunctionCalls" checked onchange="toggleFunctionCalls()">
+                Show function calls
+            </label>
+        </div>
+        
+        <div class="audio-visualizer" id="visualizer">
+            <!-- Audio bars will be added here -->
+        </div>
+        
+        <div class="conversation" id="conversation">
+            <div class="message system">
+                Click "Start Conversation" to begin. You'll be asked for microphone permissions.
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Display - Middle Column -->
+    <div class="order-display">
+        <h2>Your Order</h2>
+        <div id="orderItems">
+            <div class="order-empty">No items yet - start ordering!</div>
+        </div>
+        <div class="order-total">
+            <div class="order-total-row">
+                <span>Items:</span>
+                <span id="orderItemCount">0</span>
+            </div>
+            <div class="order-total-final">
+                <span>Total:</span>
+                <span id="orderTotalPrice">$0.00</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Menu Board -->
+    <div class="menu-board">
+        <h2>Menu</h2>
+        <div class="menu-tabs" id="menuTabs">
+            <!-- Tabs will be dynamically added here -->
+        </div>
+        <div id="menuBoardContent" class="loading-menu">
+            Loading menu...
+        </div>
+        <div id="menuMetadata" class="menu-metadata">
+            <!-- Metadata will be dynamically added here -->
+        </div>
+    </div>
+    </div>
+    
+    <!-- How to Use - Below all columns -->
+    <div class="info collapsed" id="howToUse">
+        <h3>How to Use</h3>
+        <ul>
+            <li>Click "Start Conversation" and allow microphone access</li>
+            <li>Wait for the agent's greeting</li>
+            <li>Speak naturally to place your order</li>
+            <li>You can interrupt the agent at any time (barge-in enabled)</li>
+            <li>The agent will guide you through the ordering process</li>
+        </ul>
+    </div>
+    </div> <!-- end page-wrapper -->
+
+    <script>
+        // Menu data storage
+        let menuData = {};
+        let currentCategory = 'all';
+        
+        // Load menu from backend
+        async function loadMenu() {
+            try {
+                const response = await fetch('/menu');
+                const data = await response.json();
+                
+                // Extract metadata and menu
+                const metadata = data.metadata || {};
+                menuData = data.menu || data; // Support both new and old format
+                
+                // Display metadata
+                displayMetadata(metadata);
+                
+                // Create tabs
+                createMenuTabs(Object.keys(menuData));
+                
+                // Show all categories by default
+                displayMenuCategory('all');
+                
+            } catch (error) {
+                console.error('Failed to load menu:', error);
+                document.getElementById('menuBoardContent').innerHTML = 
+                    '<div class="loading-menu">Failed to load menu</div>';
+            }
+        }
+        
+        // Display menu metadata
+        function displayMetadata(metadata) {
+            const metadataContainer = document.getElementById('menuMetadata');
+            
+            if (!metadata || Object.keys(metadata).length === 0) {
+                metadataContainer.style.display = 'none';
+                return;
+            }
+            
+            // Format timestamp
+            let timestamp = metadata.timestamp || '';
+            if (timestamp) {
+                const date = new Date(timestamp);
+                timestamp = date.toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            }
+            
+            metadataContainer.innerHTML = `
+                <div class="menu-metadata-item">
+                    <span class="menu-metadata-label">Location ID:</span> ${metadata.location_id || 'N/A'}
+                </div>
+                <div class="menu-metadata-item">
+                    <span class="menu-metadata-label">Last Updated:</span> ${timestamp || 'N/A'}
+                </div>
+                <div class="menu-metadata-item">
+                    <span class="menu-metadata-label">Total Items:</span> ${metadata.total_items || 0}
+                </div>
+            `;
+            metadataContainer.style.display = 'block';
+        }
+        
+        // Create category tabs
+        function createMenuTabs(categories) {
+            const tabsContainer = document.getElementById('menuTabs');
+            
+            // Add "All" tab
+            const allTab = document.createElement('div');
+            allTab.className = 'menu-tab active';
+            allTab.textContent = 'All';
+            allTab.onclick = () => switchCategory('all');
+            tabsContainer.appendChild(allTab);
+            
+            // Sort categories alphabetically
+            const sortedCategories = [...categories].sort((a, b) => a.localeCompare(b));
+            
+            // Add category tabs
+            sortedCategories.forEach(category => {
+                const tab = document.createElement('div');
+                tab.className = 'menu-tab';
+                tab.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+                tab.onclick = () => switchCategory(category);
+                tabsContainer.appendChild(tab);
+            });
+        }
+        
+        // Switch active category
+        function switchCategory(category) {
+            currentCategory = category;
+            
+            // Update active tab
+            document.querySelectorAll('.menu-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if ((category === 'all' && tab.textContent === 'All') ||
+                    (tab.textContent.toLowerCase() === category)) {
+                    tab.classList.add('active');
+                }
+            });
+            
+            // Display selected category
+            displayMenuCategory(category);
+        }
+        
+        // Display menu items for selected category
+        function displayMenuCategory(category) {
+            const menuContent = document.getElementById('menuBoardContent');
+            let html = '';
+            
+            if (category === 'all') {
+                // Show all categories
+                for (const [cat, items] of Object.entries(menuData)) {
+                    if (items.length > 0) {
+                        html += renderCategory(cat, items);
+                    }
+                }
+            } else {
+                // Show only selected category
+                const items = menuData[category] || [];
+                if (items.length > 0) {
+                    html += renderCategory(category, items);
+                } else {
+                    html = '<div class="loading-menu">No items in this category</div>';
+                }
+            }
+            
+            menuContent.innerHTML = html;
+            menuContent.scrollTop = 0; // Scroll to top when switching
+        }
+        
+        // Render a category with its items
+        function renderCategory(category, items) {
+            let html = `<div class="menu-category">`;
+            html += `<h3>${category.charAt(0).toUpperCase() + category.slice(1)}</h3>`;
+            
+            // Sort items alphabetically by name
+            const sortedItems = [...items].sort((a, b) => a.name.localeCompare(b.name));
+            
+            sortedItems.forEach(item => {
+                const price = item.price || 0;
+                html += `
+                    <div class="menu-item">
+                        <span class="menu-item-name">${item.name}</span>
+                        <span class="menu-item-price">$${price.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            return html;
+        }
+        
+        // Load menu on page load
+        window.addEventListener('DOMContentLoaded', loadMenu);
+        
+        // How to Use toggle functionality
+        const howToUseSection = document.getElementById('howToUse');
+        const howToUseHeading = howToUseSection.querySelector('h3');
+        
+        // Toggle on heading click
+        howToUseHeading.addEventListener('click', (e) => {
+            e.stopPropagation();
+            howToUseSection.classList.toggle('collapsed');
+        });
+        
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!howToUseSection.contains(e.target) && !howToUseSection.classList.contains('collapsed')) {
+                howToUseSection.classList.add('collapsed');
+            }
+        });
+    
+    </script>
+    <script>
+        let ws = null;
+        let audioContext = null;
+        let mediaStream = null;
+        let audioWorkletNode = null;
+        let audioQueue = [];
+        let isPlaying = false;
+        let agentSpeaking = false;
+        let nextPlayTime = 0;  // Track scheduled audio time for seamless playback
+        let showFunctionCalls = true;  // Control function call visibility
+        
+        // Order tracking
+        let currentOrder = [];
+        
+        // Settings toggle
+        function toggleFunctionCalls() {
+            showFunctionCalls = document.getElementById('showFunctionCalls').checked;
+        }
+        
+        // Update order display
+        function updateOrderDisplay() {
+            const orderItemsContainer = document.getElementById('orderItems');
+            const itemCountEl = document.getElementById('orderItemCount');
+            const totalPriceEl = document.getElementById('orderTotalPrice');
+            
+            if (currentOrder.length === 0) {
+                orderItemsContainer.innerHTML = '<div class="order-empty">No items yet - start ordering!</div>';
+                itemCountEl.textContent = '0';
+                totalPriceEl.textContent = '$0.00';
+                return;
+            }
+            
+            // Calculate total
+            let total = 0;
+            
+            // Build HTML for order items
+            let html = '';
+            currentOrder.forEach((item, index) => {
+                const itemTotal = item.price;
+                total += itemTotal;
+                
+                html += `
+                    <div class="order-item">
+                        <div class="order-item-header">
+                            <span class="order-item-name">${item.name}</span>
+                            <span class="order-item-price">$${itemTotal.toFixed(2)}</span>
+                        </div>
+                `;
+                
+                // Add modifiers if present
+                if (item.modifiers && item.modifiers.length > 0) {
+                    html += '<div class="order-item-modifiers">';
+                    item.modifiers.forEach(mod => {
+                        const modPrice = mod.price || 0;
+                        html += `
+                            <div class="order-modifier">
+                                <span class="order-modifier-name">+ ${mod.name}</span>
+                                <span class="order-modifier-price">${modPrice > 0 ? '$' + modPrice.toFixed(2) : 'included'}</span>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+            });
+            
+            orderItemsContainer.innerHTML = html;
+            itemCountEl.textContent = currentOrder.length;
+            totalPriceEl.textContent = '$' + total.toFixed(2);
+            
+            // Auto-scroll to bottom to show new items
+            orderItemsContainer.scrollTop = orderItemsContainer.scrollHeight;
+        }
+        
+        // Handle function call results to update order
+        function handleFunctionResult(functionName, result) {
+            console.log('Function result:', functionName, result);
+            try {
+                const parsedResult = typeof result === 'string' ? JSON.parse(result) : result;
+                console.log('Parsed result:', parsedResult);
+                
+                if (functionName === 'add_item' && parsedResult.success) {
+                    // Item was added
+                    const newItem = {
+                        itemId: parsedResult.itemId,
+                        itemPathKey: parsedResult.itemPathKey,
+                        name: parsedResult.itemName || parsedResult.name || 'Item',
+                        price: parsedResult.price || 0,
+                        modifiers: []
+                    };
+                    currentOrder.push(newItem);
+                    updateOrderDisplay();
+                    console.log('Order updated - added item:', newItem);
+                }
+                else if (functionName === 'add_modifier' && parsedResult.success) {
+                    // Modifier was added/replaced on an item
+                    const targetItemId = parsedResult.itemId;
+                    const targetItem = currentOrder.find(item => item.itemId === targetItemId);
+                    
+                    if (targetItem) {
+                        const newModifier = {
+                            name: parsedResult.modifier_name || 'Modifier',
+                            price: parsedResult.modifier_price || 0,
+                            itemPathKey: parsedResult.itemPathKey
+                        };
+                        
+                        // Check if this is a replacement (side/drink)
+                        let replaced = false;
+                        const modNameLower = newModifier.name.toLowerCase();
+                        let modCategory = null;
+                        
+                        if (modNameLower.includes('fries') || modNameLower.includes('side')) {
+                            modCategory = 'side';
+                        } else if (modNameLower.includes('drink') || modNameLower.includes('beverage')) {
+                            modCategory = 'drink';
+                        }
+                        
+                        if (modCategory) {
+                            // Check if we need to replace an existing modifier
+                            for (let i = 0; i < targetItem.modifiers.length; i++) {
+                                const existingModName = targetItem.modifiers[i].name.toLowerCase();
+                                if ((modCategory === 'side' && (existingModName.includes('fries') || existingModName.includes('side'))) ||
+                                    (modCategory === 'drink' && (existingModName.includes('drink') || existingModName.includes('beverage') || existingModName.includes('coke') || existingModName.includes('sprite') || existingModName.includes('juice')))) {
+                                    // Replace this modifier
+                                    targetItem.price -= targetItem.modifiers[i].price;
+                                    targetItem.modifiers.splice(i, 1);
+                                    replaced = true;
+                                    console.log('Replacing modifier');
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        targetItem.modifiers.push(newModifier);
+                        targetItem.price += newModifier.price;
+                        updateOrderDisplay();
+                        console.log('Order updated -', replaced ? 'replaced' : 'added', 'modifier:', newModifier, 'to item:', targetItem.name);
+                    } else {
+                        console.warn('Target item not found:', targetItemId);
+                    }
+                }
+                else if (functionName === 'delete_item') {
+                    // Item was removed
+                    if (parsedResult.success) {
+                        const itemIdToRemove = parsedResult.itemId;
+                        currentOrder = currentOrder.filter(item => item.itemId !== itemIdToRemove);
+                        updateOrderDisplay();
+                        console.log('Order updated - removed item:', itemIdToRemove);
+                    }
+                }
+                else if (functionName === 'submit_order_to_qu') {
+                    // Order was submitted - keep it visible until next order starts
+                    if (parsedResult.success) {
+                        // Don't clear the order - let it stay visible
+                        // It will clear when the connection is reset or a new order begins
+                        console.log('Order submitted - keeping visible on screen');
+                    }
+                }
+                else if (functionName === 'clear_order') {
+                    // Order was cleared
+                    currentOrder = [];
+                    updateOrderDisplay();
+                }
+            } catch (error) {
+                console.error('Error handling function result:', error);
+            }
+        }
+        
+        // Status management
+        function setStatus(text, className) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = text;
+            statusEl.className = `status ${className}`;
+        }
+        
+        // Add message to conversation
+        function addMessage(role, content) {
+            const conv = document.getElementById('conversation');
+            const msg = document.createElement('div');
+            msg.className = `message ${role}`;
+            
+            if (role !== 'system') {
+                const label = document.createElement('div');
+                label.className = 'message-label';
+                label.textContent = role === 'user' ? 'You' : 'Agent';
+                msg.appendChild(label);
+            }
+            
+            const text = document.createElement('div');
+            text.textContent = content;
+            msg.appendChild(text);
+            
+            conv.appendChild(msg);
+            conv.scrollTop = conv.scrollHeight;
+        }
+        
+        // Audio visualizer
+        function createVisualizer() {
+            const visualizer = document.getElementById('visualizer');
+            visualizer.innerHTML = '';
+            for (let i = 0; i < 30; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'audio-bar';
+                bar.style.height = '10px';
+                visualizer.appendChild(bar);
+            }
+        }
+        
+        function updateVisualizer(speaking) {
+            const bars = document.querySelectorAll('.audio-bar');
+            bars.forEach((bar, i) => {
+                if (speaking) {
+                    const height = Math.random() * 40 + 10;
+                    bar.style.height = `${height}px`;
+                    bar.style.background = agentSpeaking ? '#764ba2' : '#667eea';
+                } else {
+                    bar.style.height = '10px';
+                    bar.style.background = '#667eea';
+                }
+            });
+        }
+        
+        let visualizerInterval = null;
+        
+        // Connect to server
+        async function connect() {
+            try {
+                setStatus('Connecting...', 'connecting');
+                addMessage('system', 'Requesting microphone access...');
+                
+                // Request microphone
+                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        sampleRate: 48000
+                    } 
+                });
+                
+                addMessage('system', 'Microphone access granted. Connecting to voice agent...');
+                
+                // Create audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 48000
+                });
+                
+                // Connect to WebSocket
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                ws = new WebSocket(wsUrl);
+                ws.binaryType = 'arraybuffer';
+                
+                ws.onopen = () => {
+                    console.log('WebSocket connected');
+                };
+                
+                ws.onmessage = (event) => {
+                    if (event.data instanceof ArrayBuffer) {
+                        // Audio data from agent
+                        playAudio(event.data);
+                    } else {
+                        // JSON message
+                        const data = JSON.parse(event.data);
+                        handleMessage(data);
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    addMessage('system', 'Connection error occurred');
+                    setStatus('Error', 'disconnected');
+                };
+                
+                ws.onclose = () => {
+                    console.log('WebSocket closed');
+                    cleanup();
+                    setStatus('Disconnected', 'disconnected');
+                    addMessage('system', 'Connection closed');
+                };
+                
+                // Start audio capture
+                await startAudioCapture();
+                
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                
+                createVisualizer();
+                visualizerInterval = setInterval(() => {
+                    updateVisualizer(agentSpeaking);
+                }, 100);
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                addMessage('system', `Error: ${error.message}`);
+                setStatus('Error', 'disconnected');
+                cleanup();
+            }
+        }
+        
+        // Handle incoming messages
+        function handleMessage(data) {
+            const type = data.type;
+            
+            if (type === 'connected') {
+                addMessage('system', data.message);
+            } else if (type === 'ready') {
+                setStatus('Connected - Ready to talk', 'connected');
+                addMessage('system', 'Agent is ready! Start speaking...');
+            } else if (type === 'ConversationText') {
+                const role = data.role;
+                const content = data.content;
+                if (role === 'user') {
+                    addMessage('user', content);
+                } else if (role === 'assistant') {
+                    addMessage('agent', content);
+                }
+            } else if (type === 'UserStartedSpeaking') {
+                setStatus('You are speaking...', 'speaking');
+                agentSpeaking = false;
+                // Reset audio schedule on barge-in (stop agent audio immediately)
+                nextPlayTime = audioContext ? audioContext.currentTime : 0;
+            } else if (type === 'AgentStartedSpeaking') {
+                setStatus('Agent speaking...', 'speaking');
+                agentSpeaking = true;
+            } else if (type === 'AgentAudioDone') {
+                setStatus('Connected - Ready to talk', 'connected');
+                agentSpeaking = false;
+            } else if (type === 'AgentThinking') {
+                setStatus('Agent thinking...', 'connecting');
+            } else if (type === 'Error' || type === 'error') {
+                addMessage('system', `Error: ${data.message || JSON.stringify(data)}`);
+            } else if (type === 'FunctionCallRequest') {
+                // Only show function calls if the setting is enabled
+                if (showFunctionCalls) {
+                    // Show each function call with its arguments for better visibility
+                    data.functions.forEach(func => {
+                        const args = func.arguments ? JSON.parse(func.arguments) : {};
+                        let argStr = '';
+                        
+                        // Format arguments in a readable way
+                        if (func.name === 'query_items' && args.query) {
+                            argStr = ` "${args.query}"`;
+                        } else if (func.name === 'query_modifiers' && args.query) {
+                            argStr = ` "${args.query}"`;
+                        } else if (func.name === 'add_item' && args.itemPathKey) {
+                            argStr = '';  // Don't show technical IDs
+                        } else if (func.name === 'add_modifier' && args.itemPathKey) {
+                            argStr = '';  // Don't show technical IDs
+                        } else if (func.name === 'delete_item' && args.itemId) {
+                            argStr = '';  // Don't show technical IDs
+                        } else if (func.name === 'get_category_items' && args.category) {
+                            argStr = ` "${args.category}"`;
+                        } else if (Object.keys(args).length > 0) {
+                            argStr = ` ${JSON.stringify(args)}`;
+                        }
+                        
+                        addMessage('system', `${func.name}${argStr}`);
+                    });
+                }
+            } else if (type === 'FunctionCallResponse') {
+                // Handle function call results to update order display
+                if (data.name && data.content) {
+                    handleFunctionResult(data.name, data.content);
+                }
+            }
+        }
+        
+        // Audio capture
+        async function startAudioCapture() {
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            
+            // Create ScriptProcessorNode for audio processing
+            const processor = audioContext.createScriptProcessor(4096, 1, 1);
+            
+            processor.onaudioprocess = (e) => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    const inputData = e.inputBuffer.getChannelData(0);
+                    
+                    // Convert float32 to int16 PCM
+                    const pcmData = new Int16Array(inputData.length);
+                    for (let i = 0; i < inputData.length; i++) {
+                        const s = Math.max(-1, Math.min(1, inputData[i]));
+                        pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    }
+                    
+                    // Send to server
+                    ws.send(pcmData.buffer);
+                }
+            };
+            
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+            
+            audioWorkletNode = processor;
+        }
+        
+        // Audio playback - seamless streaming without gaps
+        function playAudio(audioData) {
+            try {
+                // Convert Int16 PCM to Float32
+                const pcmData = new Int16Array(audioData);
+                const floatData = new Float32Array(pcmData.length);
+                
+                for (let i = 0; i < pcmData.length; i++) {
+                    floatData[i] = pcmData[i] / (pcmData[i] < 0 ? 0x8000 : 0x7FFF);
+                }
+                
+                // Create audio buffer
+                const audioBuffer = audioContext.createBuffer(1, floatData.length, 16000);
+                audioBuffer.getChannelData(0).set(floatData);
+                
+                // Schedule playback with no gaps
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                
+                // Calculate when to start this chunk
+                const currentTime = audioContext.currentTime;
+                
+                // If we're ahead of real-time, schedule for the next slot
+                // Otherwise, play immediately and reset the schedule
+                if (nextPlayTime < currentTime) {
+                    nextPlayTime = currentTime;
+                }
+                
+                // Start this chunk at the scheduled time
+                source.start(nextPlayTime);
+                
+                // Schedule next chunk to start immediately after this one
+                const duration = audioBuffer.duration;
+                nextPlayTime += duration;
+                
+            } catch (error) {
+                console.error('Audio playback error:', error);
+                // Reset on error
+                nextPlayTime = audioContext.currentTime;
+            }
+        }
+        
+        // Disconnect
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+            
+            // Clear the order when conversation ends
+            currentOrder = [];
+            updateOrderDisplay();
+            
+            cleanup();
+        }
+        
+        function cleanup() {
+            if (visualizerInterval) {
+                clearInterval(visualizerInterval);
+                visualizerInterval = null;
+            }
+            
+            if (audioWorkletNode) {
+                audioWorkletNode.disconnect();
+                audioWorkletNode = null;
+            }
+            
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+            
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            
+            // Reset all audio state
+            nextPlayTime = 0;
+            isPlaying = false;
+            agentSpeaking = false;
+            
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            
+            updateVisualizer(false);
+        }
+        
+        // Initialize
+        createVisualizer();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,253 @@
+Follow these steps to fully restart the system locally with fresh indexing.
+
+
+================================================================================
+STEP 1: STOP EVERYTHING
+================================================================================
+
+# Stop any running Python processes
+pkill -f web_voice_agent_server.py
+
+# Stop Rust backend
+pkill -f nexeo-sts
+
+# Stop Qdrant
+podman stop qdrant 2>/dev/null || true
+podman rm qdrant 2>/dev/null || true
+
+
+
+
+================================================================================
+STEP 2: CLEAN QDRANT STORAGE (FRESH START)
+================================================================================
+
+# Remove old Qdrant data to force re-indexing
+rm -rf ~/Desktop/CODE/JITB/dg-compat-lab/qdrant_storage/*
+
+
+
+
+================================================================================
+STEP 3: START QDRANT
+================================================================================
+
+# Start Qdrant container with HTTP (6333) and gRPC (6334) ports
+podman run -d \
+  --name qdrant \
+  -p 6333:6333 \
+  -p 6334:6334 \
+  -v ~/Desktop/CODE/JITB/dg-compat-lab/qdrant_storage:/qdrant/storage \
+  qdrant/qdrant:latest
+
+# Wait for Qdrant to start
+sleep 5
+
+# Verify Qdrant is running
+curl -s http://localhost:6333/collections | jq '.'
+
+
+
+
+================================================================================
+STEP 4: START RUST BACKEND (WITH VECTORIZING & INDEXING)
+================================================================================
+
+# Navigate to rust-code directory
+cd ~/Desktop/CODE/JITB/dg-compat-lab/rust-code
+
+# Run the Rust backend (this will fetch menu and index with vectors)
+./run.sh
+
+# IMPORTANT: This step will take 1-2 minutes for indexing
+
+
+================================================================================
+STEP 5: VERIFY RUST BACKEND & QDRANT
+================================================================================
+
+# In a NEW terminal window, verify collections were created:
+curl -s http://localhost:6333/collections/menu | jq '.result.points_count'
+# Should show: ~339
+
+curl -s http://localhost:6333/collections/modifiers | jq '.result.points_count'
+# Should show: ~53925
+
+# Test a query
+curl -s "http://localhost:4000/query/items" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"jumbo jack", "limit":3}' | jq '.'
+
+# Should return results with Jumbo Jack items like below:
+
+{
+  "items": [
+    {
+      "title": "Combo - Jumbo Jack",
+      "itemPathKey": "47587-56634-105606",
+      "parentPathKey": "47587-56634",
+      "displayAttribute": {
+        "description": "100% beef seasoned as it grills, lettuce, tomato, pickles, onions, ketchup & mayo on a buttery bakery bun, plus hot & salty fries & a drink."
+      },
+      "children": [],
+      "queryId": "b74521e6-7f15-49b6-b766-1cb317bd76a0"
+    },
+    {
+      "title": "Combo - 2 for $X Jumbo Jacks",
+      "itemPathKey": "47587-56635-99286",
+      "parentPathKey": "47587-56635",
+      "displayAttribute": {
+        "description": "100% beef seasoned as it grills, lettuce, tomato, pickles, onions, ketchup & mayo on a buttery bakery bun. Talk about a jumbo deal. Get 2 for $5 today."
+      },
+      "children": [],
+      "queryId": "b7cd1b78-a152-4926-ae49-04354f5024f0"
+    },
+    {
+      "title": "Burger - Jumbo Jack",
+      "itemPathKey": "47587-56634-47679",
+      "parentPathKey": "47587-56634",
+      "displayAttribute": {
+        "description": "100% beef seasoned as it grills, lettuce, tomato, pickles, onions, ketchup & mayo on a buttery bakery bun. *Jumbo isn't one of those ironic nicknames."
+      },
+      "children": [],
+      "queryId": "7ee7cb07-6fbe-431c-ad06-b0127ebcee45"
+    }
+  ]
+}
+
+================================================================================
+STEP 6: REFRESH PRICES FROM QU API
+================================================================================
+
+# In a NEW terminal window, navigate to project root
+cd ~/Desktop/CODE/JITB/dg-compat-lab
+
+# Activate virtual environment
+source myenv/bin/activate
+
+# Fetch fresh prices from Qu API (same source as menu that just loaded)
+python3 get_full_menu_with_prices.py
+
+# Expected output:
+#   - JWT authentication success
+#   - Location context fetched
+#   - Menu download (~137MB, takes 5-10 seconds)
+#   - "Extracted 86115 items with prices"
+#   - "Saved price map to: qu_prices_complete.json"
+
+# Verify prices were updated
+cat qu_prices_complete.json | grep extracted_at
+
+# Expected: Shows current timestamp
+
+
+================================================================================
+STEP 7: START PYTHON WEB SERVER
+================================================================================
+
+# In the SAME terminal (with venv still activated)
+# Start the Python web server
+python3 web_voice_agent_server.py
+
+# You should see:
+#   - "🚀 Starting Jack in the Box Voice Agent Server..."
+#   - "📍 Server will be available at http://localhost:8000"
+#   - "✅ Loaded X real Qu prices..."
+#   - "🔄 Loading menu categories at startup..."
+#   - "✅ Menu loaded successfully"
+
+# Wait for "Menu loaded successfully" before testing
+
+
+================================================================================
+STEP 8: TEST THE SYSTEM
+================================================================================
+
+# Open your browser
+open http://localhost:8000
+
+# You should see:
+#   - Jack in the Box Voice Agent UI
+#   - Menu items loaded on the right side
+#   - "Start Conversation" button ready
+
+# Click "Start Conversation" and test ordering
+
+
+================================================================================
+QUICK REFERENCE - ALL COMMANDS IN SEQUENCE
+================================================================================
+
+# Terminal 1: Stop everything and clean
+pkill -f web_voice_agent_server.py
+pkill -f nexeo-sts
+podman stop qdrant 2>/dev/null || true
+podman rm qdrant 2>/dev/null || true
+rm -rf ~/Desktop/CODE/JITB/dg-compat-lab/qdrant_storage/*
+
+# Terminal 1: Start Qdrant
+podman run -d --name qdrant -p 6333:6333 -p 6334:6334 \
+  -v ~/Desktop/CODE/JITB/dg-compat-lab/qdrant_storage:/qdrant/storage \
+  qdrant/qdrant:latest
+sleep 5
+curl -s http://localhost:6333/collections | jq '.'
+
+# Terminal 1: Start Rust backend
+cd ~/Desktop/CODE/JITB/dg-compat-lab/rust-code
+./run.sh
+# Wait for "Listening on 0.0.0.0:4000"
+
+# Terminal 2: Verify indexing (after Rust backend finishes)
+curl -s http://localhost:6333/collections/menu | jq '.result.points_count'
+curl -s http://localhost:6333/collections/modifiers | jq '.result.points_count'
+
+# Terminal 3: Load prices and start Python server
+cd ~/Desktop/CODE/JITB/dg-compat-lab
+source myenv/bin/activate
+python3 get_full_menu_with_prices.py
+python3 web_voice_agent_server.py
+# Wait for "Menu loaded successfully"
+
+# Terminal 4: Open browser
+open http://localhost:8000
+
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+If Rust backend shows "Connection refused" (Qdrant):
+  - Make sure Qdrant is running: podman ps | grep qdrant
+  - Check port 6334: sudo lsof -i :6334
+
+If Rust backend shows "Port 4000 already in use":
+  - Kill the old process: sudo lsof -ti:4000 | xargs -r sudo kill -9
+
+If Python shows "Port 8000 already in use":
+  - Kill the old process: sudo lsof -ti:8000 | xargs -r sudo kill -9
+
+If menu items show 0 results:
+  - Wait for Rust backend to finish indexing (1-2 minutes)
+  - Check Qdrant collections have data (see Step 5)
+
+If queries return empty results:
+  - Check USE_VECTOR=1 in .env
+  - Check QDRANT_URL=http://localhost:6334 in .env
+
+
+================================================================================
+LOGS TO MONITOR
+================================================================================
+
+Rust Backend Logs:
+  - Terminal 1 (where ./run.sh is running)
+  - Look for indexing progress and any errors
+
+Python Server Logs:
+  - Terminal 3 (where python3 web_voice_agent_server.py is running)
+  - Look for function calls and agent interactions
+
+Conversation Logs:
+  - ~/Desktop/CODE/JITB/dg-compat-lab/conversation_logs/
+  - Created automatically when you start a conversation
+

@@ -1,0 +1,50 @@
+# Extra folder (documentation archive)
+extra/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+myenv/
+venv/
+env/
+
+# Logs
+*.log
+latency_logs.txt
+conversation_logs/
+
+# Environment variables
+.env
+
+# Qdrant storage
+qdrant_storage/
+
+# Rust
+target/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.bak
+
+# Credentials
+*.pem
+credentials
+
+# Large data files
+qu_prices_complete.json
+full_menu_with_prices.json
+location_details.json
+menu_prices_direct.json
+prices.json

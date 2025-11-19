@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+myenv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+README*
+WEB_UI_README.md
+WEB_VOICE_AGENT_README.md
+DEV_WORKFLOW.md
+python-rust-bridge.md
+
+# Draft files
+draft/
+
+# Rust code (not needed for web agent)
+rust-code/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scripts
+promote_to_test.sh
+setup-local-env.sh
+run.sh
+view_latency.sh
+
+# Logs
+latency_logs.txt
+*.log
+
+# Test files
+test_*.py
+terminal_voice_agent.py
+
+# Large files
+*.zip
+*.pem
+*.pdf
+video.mp4
+*.png
+*.excalidraw
+
+# Credentials (use environment variables instead)
+credentials
+nexeo.pem
+
+# Container files (don't include in image)
+Dockerfile
+.dockerignore
+docker-compose.yml
+

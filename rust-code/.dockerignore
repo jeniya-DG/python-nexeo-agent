@@ -1,0 +1,21 @@
+# Exclude development files
+target/
+.git/
+.gitignore
+README.md
+.env
+.env.local
+.env.sample
+
+# Exclude qdrant storage (will be mounted as volume)
+qdrant_storage/
+
+# Exclude IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Exclude OS files
+.DS_Store
+Thumbs.db

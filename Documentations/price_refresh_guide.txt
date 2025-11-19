@@ -1,0 +1,223 @@
+================================================================================
+    Qu Price Refresh - Guide
+================================================================================
+
+The qu_prices_complete.json file contains 86,115 real prices fetched from the
+Qu API. This file is generated whenever the menu is loaded from Qu to ensure
+prices are always in sync with the menu data.
+
+
+================================================================================
+HOW PRICES ARE FETCHED
+================================================================================
+
+Script: get_full_menu_with_prices.py
+
+Process:
+1. Authenticate with Qu API (OAuth2 JWT)
+2. Get location context (OrderChannelId, OrderTypeId)
+3. Fetch full menu from /api/v4/menus with prices
+   - Response size: ~137MB
+   - Contains full hierarchical menu with priceAttribute
+4. Recursively extract prices from menu tree
+5. Save to qu_prices_complete.json
+
+Output format:
+{
+  "extracted_at": "2025-11-18T21:30:00",
+  "source": "/api/v4/menus (Full Menu with Dynamic Context)",
+  "location_id": "4776",
+  "price_count": 86115,
+  "prices": {
+    "47587-56634-105606": 8.19,
+    "47587-56634-47679": 5.49,
+    ...
+  }
+}
+
+Note: Prices are stored as floats (not objects) for fast lookup by itemPathKey
+
+
+================================================================================
+WHEN ARE PRICES REFRESHED?
+================================================================================
+
+Prices are refreshed WHENEVER the menu is loaded from Qu:
+
+1. Nightly at 4:00 AM (Production - via cron job)
+   Script: refresh_qu_nightly.sh
+   - Restarts Qdrant and Rust backend (fresh menu indexing)
+   - Immediately after menu loads: Refreshes prices from Qu API
+   - Logs everything to qu_refresh.log
+
+2. Manual System Restart (Local or Production)
+   - Follow restart_guide.txt (EC2) or local_restart_steps.txt (local)
+   - After Rust backend loads menu: Run get_full_menu_with_prices.py
+   - Ensures prices match the menu that was just loaded
+
+3. Manual Price-Only Refresh (Anytime)
+   - Run: python3 get_full_menu_with_prices.py
+   - Updates prices without restarting Rust backend
+   - Use when you only need to refresh prices
+
+Key principle: Prices should always be fetched AFTER menu is loaded to ensure
+they match the same menu structure and items.
+
+Check logs:
+  tail -f /home/ubuntu/dg-compat-lab/qu_refresh.log
+
+
+================================================================================
+MANUAL REFRESH (Local or EC2)
+================================================================================
+
+Local:
+  cd ~/Desktop/CODE/JITB/dg-compat-lab
+  source myenv/bin/activate
+  python3 get_full_menu_with_prices.py
+
+EC2:
+  ssh -i ~/.ssh/nexeo.pem ubuntu@3.134.46.103
+  cd ~/dg-compat-lab
+  source myenv/bin/activate
+  python3 get_full_menu_with_prices.py
+
+Expected output:
+  - JWT authentication
+  - Location context fetched
+  - Menu download (~137MB, takes 5-10 seconds)
+  - Price extraction progress
+  - Summary: "Extracted 86115 items with prices"
+  - Saved to: qu_prices_complete.json
+
+Duration: 10-15 seconds
+
+
+================================================================================
+VERIFY PRICES ARE CURRENT
+================================================================================
+
+Check last refresh time:
+  cat qu_prices_complete.json | grep extracted_at
+  
+  Output example:
+  "extracted_at": "2025-11-18T21:30:45.123456"
+
+Check price count:
+  cat qu_prices_complete.json | grep price_count
+  
+  Output example:
+  "price_count": 86115
+
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Issue: "Failed to authenticate"
+  - Check QU_SECRET in .env
+  - Check CLIENT_ID in .env
+  - Ensure credentials are valid
+
+Issue: "400 Bad Request" when fetching menu
+  - Check LOCATION_ID in .env
+  - Ensure OrderChannelId and OrderTypeId are correct
+
+Issue: "Extracted 0 items with prices"
+  - Menu API response may have changed format
+  - Check if priceAttribute still exists in API response
+
+Issue: Python service doesn't load prices
+  - Ensure qu_prices_complete.json is in the same directory as jitb_functions.py
+  - Check file permissions (should be readable)
+  - Restart Python service after price refresh
+
+
+================================================================================
+PRICE DATA DETAILS
+================================================================================
+
+What's included in 86,115 prices:
+  - All menu items (combos, burgers, chicken, breakfast)
+  - All modifiers (sides, drinks, toppings, sauces)
+  - All size variations
+  - All upsells and add-ons
+
+Price format:
+  - Stored in cents precision: 8.19 (not 8.190000)
+  - Zero prices indicate included items (combo modifiers)
+  - Negative prices should not exist (filtered out)
+
+Where prices are used:
+  - jitb_functions.py: get_price_by_item_path_key()
+  - Loaded at startup: "Loaded 86115 real Qu prices"
+  - Used for: Order totals, price display, combo pricing
+
+
+================================================================================
+DEPLOYMENT TO EC2
+================================================================================
+
+Copy script to EC2:
+  scp -i ~/.ssh/nexeo.pem get_full_menu_with_prices.py ubuntu@3.134.46.103:~/dg-compat-lab/
+
+Test on EC2:
+  ssh -i ~/.ssh/nexeo.pem ubuntu@3.134.46.103
+  cd ~/dg-compat-lab
+  source myenv/bin/activate
+  python3 get_full_menu_with_prices.py
+
+Verify it's integrated in nightly refresh:
+  ssh -i ~/.ssh/nexeo.pem ubuntu@3.134.46.103
+  grep "get_full_menu_with_prices" ~/dg-compat-lab/refresh_qu_nightly.sh
+
+Expected to see:
+  python3 get_full_menu_with_prices.py >> "$LOG_FILE" 2>&1
+
+
+================================================================================
+MONITORING
+================================================================================
+
+Price staleness alert:
+  If prices are more than 7 days old, they may be outdated.
+  Check extracted_at timestamp.
+
+Price count changes:
+  If price_count changes significantly (>10%), investigate:
+  - Menu items added/removed
+  - API response format changes
+  - Extraction logic issues
+
+Price accuracy:
+  Spot-check a few known items:
+  - Jumbo Jack combo should be ~$8.19
+  - Curly fries side (combo) should be $0.00
+  - Standalone curly fries should be >$0.00
+
+
+================================================================================
+FUTURE IMPROVEMENTS
+================================================================================
+
+1. Cache price history
+   - Track price changes over time
+   - Alert on significant price increases
+
+2. Differential updates
+   - Only fetch changed prices
+   - Faster refresh times
+
+3. Price validation
+   - Cross-check with POS system
+   - Alert on anomalies
+
+4. Multi-location support
+   - Fetch prices for all locations
+   - Location-specific pricing
+
+
+================================================================================
+END OF GUIDE
+================================================================================
+

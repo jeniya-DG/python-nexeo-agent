@@ -1,0 +1,30 @@
+[package]
+name = "nexeo-sts"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.8", features = ["ws"] }
+axum-server = { version = "0.7", features = ["tls-rustls"] }
+crc32fast = "1.4"
+chrono = "0.4"
+env_logger = "0.11"
+futures = "0.3"
+futures-util = "0.3"
+itertools = "0.14"
+log = "0.4"
+qdrant-client = "1.5"
+reqwest = { version = "0.12", features = ["json", "multipart"] }
+rust-bert = "0.23"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.27", features = ["rustls-tls-webpki-roots", "url"] }
+url = "2.5"
+uuid = { version = "1", features = ["v4", "serde"] }
+rustls = "0.23.31"
+
+[dependencies.console]
+version = "0.16"
+features = ["std"]
+default-features = false
