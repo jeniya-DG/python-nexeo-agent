@@ -1,36 +1,52 @@
 #!/bin/bash
-# Deploy latest code to EC2 and restart services
+# Deploy latest code to EC2 via SCP and restart services
 
 set -e
 
 EC2_USER="ubuntu"
 EC2_HOST="3.134.46.103"
 KEY_PATH="$HOME/.ssh/nexeo.pem"
-REPO_DIR="dg-compat-lab"
+LOCAL_DIR="$PWD"
+REMOTE_DIR="/home/ubuntu/dg-compat-lab"
 
-echo "🚀 Deploying latest code to EC2..."
-echo "=================================="
+echo "🚀 Deploying latest code to EC2 via SCP..."
+echo "==========================================="
 
-# Step 1: Push local changes to GitHub
+# Step 1: Push local changes to GitHub (for backup)
 echo ""
-echo "📤 Step 1: Pushing to GitHub..."
+echo "📤 Step 1: Pushing to GitHub (backup)..."
 git add -A
 git commit -m "Deploy: $(date '+%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
 git push origin main
 
-# Step 2: Pull on EC2 and restart
+# Step 2: Copy Python files to EC2
 echo ""
-echo "📥 Step 2: Pulling on EC2 and restarting services..."
+echo "📦 Step 2: Copying Python files to EC2..."
+scp -i "$KEY_PATH" \
+    "$LOCAL_DIR/web_voice_agent_server.py" \
+    "$LOCAL_DIR/jitb_functions.py" \
+    "$LOCAL_DIR/agent_config.py" \
+    "$LOCAL_DIR/latency_tracker.py" \
+    "$EC2_USER@$EC2_HOST:$REMOTE_DIR/"
+
+echo "   ✓ Python files copied"
+
+# Step 3: Copy other important files
+echo ""
+echo "📦 Step 3: Copying other files..."
+scp -i "$KEY_PATH" \
+    "$LOCAL_DIR/qu_prices_complete.json" \
+    "$LOCAL_DIR/requirements.txt" \
+    "$EC2_USER@$EC2_HOST:$REMOTE_DIR/" 2>/dev/null || echo "   ⚠ Some files might not exist locally"
+
+# Step 4: Restart service on EC2
+echo ""
+echo "🔄 Step 4: Restarting Python web service on EC2..."
 ssh -i "$KEY_PATH" "$EC2_USER@$EC2_HOST" << 'EOF'
-    cd ~/dg-compat-lab
-    
-    echo "   • Pulling latest code from GitHub..."
-    git pull origin main
-    
     echo "   • Stopping Python web service..."
     sudo systemctl stop jitb-web.service
     
-    echo "   • Restarting Python web service..."
+    echo "   • Starting Python web service..."
     sudo systemctl start jitb-web.service
     
     echo "   • Waiting for service to start..."
