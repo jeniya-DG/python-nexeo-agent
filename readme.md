@@ -823,6 +823,8 @@ python3 get_full_menu_with_prices.py
 
 ## Troubleshooting Quick Reference
 
+**📘 For complete EC2 restart procedures, see [EC2 Restart Guide](ec2-restart-guide.md)**
+
 ### Rust Backend Not Starting
 1. Check Qdrant is running: `podman ps | grep qdrant`
 2. Check port 4000: `lsof -i :4000`
